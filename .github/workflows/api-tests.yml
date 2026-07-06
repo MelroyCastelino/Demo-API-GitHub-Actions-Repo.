@@ -1,0 +1,164 @@
+# ============================================================
+# FILE: .github/workflows/api-tests.yml
+# PURPOSE: Run GoRest Postman Collection via Newman
+#          Generate HTML Report and save as Artifact
+# ============================================================
+
+# Workflow display name shown in GitHub Actions tab
+name: GoRest API Tests - Newman with HTML Report
+
+# ============================================================
+# TRIGGERS: When should this workflow run?
+# ============================================================
+on:
+
+  # Trigger 1: When code is pushed to Trial-GitHub-Action branch
+  push:
+    branches:
+      - Trial-GitHub-Action   # Only runs on THIS branch, not main
+
+  # Trigger 2: When Pull Request targets Trial-GitHub-Action branch
+  pull_request:
+    branches:
+      - Trial-GitHub-Action   # PR must target THIS specific branch
+
+  # Trigger 3: Manual run button in GitHub Actions UI
+  workflow_dispatch:          # Adds "Run workflow" button on GitHub
+
+# ============================================================
+# JOBS: The actual work to be done
+# ============================================================
+jobs:
+
+  # Job name (can be anything descriptive)
+  run-gorest-api-tests:
+
+    # Use Ubuntu Linux server provided by GitHub (FREE)
+    runs-on: ubuntu-latest
+
+    # --------------------------------------------------------
+    # STEPS: Tasks that run one after another in order
+    # --------------------------------------------------------
+    steps:
+
+      # ------------------------------------------------------
+      # STEP 1: Download repository code to GitHub server
+      # Without this, server has no files to work with
+      # ------------------------------------------------------
+      - name: Step-1 Checkout Repository Code
+        uses: actions/checkout@v3   # Official GitHub action to clone your repo
+
+      # ------------------------------------------------------
+      # STEP 2: Install Node.js on the server
+      # Newman is a Node.js tool - Node.js is required first
+      # ------------------------------------------------------
+      - name: Step-2 Setup Node.js Version 18
+        uses: actions/setup-node@v3  # Official action to install Node.js
+        with:
+          node-version: '18'         # LTS version - most stable for Newman
+
+      # ------------------------------------------------------
+      # STEP 3: Install Newman (Postman CLI runner)
+      # Newman runs Postman collections from command line
+      # ------------------------------------------------------
+      - name: Step-3 Install Newman CLI Tool
+        run: npm install -g newman   # -g means install globally on server
+
+      # ------------------------------------------------------
+      # STEP 4: Install Newman HTMLExtra Reporter
+      # Generates beautiful HTML report with charts and details
+      # ------------------------------------------------------
+      - name: Step-4 Install Newman HTMLExtra Reporter
+        run: npm install -g newman-reporter-htmlextra  # HTML report generator
+
+      # ------------------------------------------------------
+      # STEP 5: Verify all tools are installed correctly
+      # Prints version numbers to confirm successful install
+      # ------------------------------------------------------
+      - name: Step-5 Verify Tool Installations
+        run: |
+          echo "=== Checking Installed Tools ==="   # Print section header
+          node --version                             # Show Node.js version
+          npm --version                              # Show npm version
+          newman --version                           # Show Newman version
+          echo "=== All Tools Ready! ==="           # Confirm completion
+
+      # ------------------------------------------------------
+      # STEP 6: Create folder to store the HTML report
+      # Newman needs this folder to exist before saving report
+      # ------------------------------------------------------
+      - name: Step-6 Create Reports Directory
+        run: mkdir -p newman-reports   # -p creates parent folders if missing
+
+      # ------------------------------------------------------
+      # STEP 7: Run Newman with GoRest Collection
+      # This is the MAIN STEP - executes all API tests
+      #
+      # --reporters cli,htmlextra = Show in terminal AND create HTML
+      # --reporter-htmlextra-export = Path where HTML report saved
+      # --reporter-htmlextra-title = Title shown at top of report
+      # --reporter-htmlextra-logs = Include console.log() in report
+      # --delay-request 1000 = Wait 1 second between requests
+      #                        (Important for API chaining to work)
+      # --timeout-request 30000 = Max 30 seconds wait per request
+      # --timeout 120000 = Max 2 minutes for entire collection run
+      #
+      # continue-on-error: true = Even if tests fail, go to next step
+      #                           So report still gets uploaded!
+      # ------------------------------------------------------
+      - name: Step-7 Run GoRest API Tests with Newman
+        run: |
+          newman run "GoRest Collection.postman_collection.json" \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export newman-reports/GoRest-API-Test-Report.html \
+            --reporter-htmlextra-title "GoRest API Test Report - ${{ github.run_number }}" \
+            --reporter-htmlextra-logs \
+            --reporter-htmlextra-showOnlyFails \
+            --delay-request 1000 \
+            --timeout-request 30000 \
+            --timeout 120000
+        continue-on-error: true   # Don't stop if tests fail - still upload report
+
+      # ------------------------------------------------------
+      # STEP 8: Check if HTML report was created successfully
+      # Lists files in reports folder to confirm report exists
+      # ------------------------------------------------------
+      - name: Step-8 Verify HTML Report Was Created
+        if: always()   # Run this step always, even if previous step failed
+        run: |
+          echo "=== Files in newman-reports folder ==="
+          ls -la newman-reports/                        # List all files with details
+          echo "======================================"
+
+      # ------------------------------------------------------
+      # STEP 9: Upload HTML Report as GitHub Artifact
+      # Artifacts are files you can download from GitHub UI
+      # Without this, HTML report is LOST when server stops!
+      #
+      # if: always() = Upload even if tests failed
+      # name = What artifact is called in GitHub UI
+      # path = Which file/folder to upload
+      # retention-days = How many days to keep the artifact
+      # ------------------------------------------------------
+      - name: Step-9 Upload HTML Report as Artifact
+        uses: actions/upload-artifact@v3   # Official action to save files
+        if: always()                        # Always upload, even on test failure
+        with:
+          name: GoRest-API-HTML-Test-Report-Run-${{ github.run_number }}  # Artifact name with run number
+          path: newman-reports/GoRest-API-Test-Report.html                 # File to upload
+          retention-days: 30                                                # Keep artifact 30 days
+
+      # ------------------------------------------------------
+      # STEP 10: Print Test Summary to GitHub Actions Log
+      # Shows quick summary in the workflow log output
+      # ------------------------------------------------------
+      - name: Step-10 Print Test Summary
+        if: always()   # Always run this step
+        run: |
+          echo "================================================"
+          echo "  GoRest API Test Execution Complete!"
+          echo "  Branch: ${{ github.ref_name }}"           # Shows branch name
+          echo "  Run Number: ${{ github.run_number }}"     # Shows run count
+          echo "  Triggered by: ${{ github.event_name }}"   # Shows what triggered it
+          echo "  Download Report from Artifacts section!"
+          echo "================================================"
