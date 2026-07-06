@@ -141,7 +141,7 @@ jobs:
       # retention-days = How many days to keep the artifact
       # ------------------------------------------------------
       - name: Step-9 Upload HTML Report as Artifact
-        uses: actions/upload-artifact@v3   # Official action to save files
+        uses: actions/upload-artifact@v4   # Official action to save files
         if: always()                        # Always upload, even on test failure
         with:
           name: GoRest-API-HTML-Test-Report-Run-${{ github.run_number }}  # Artifact name with run number
