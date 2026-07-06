@@ -46,14 +46,14 @@ jobs:
       # Without this, server has no files to work with
       # ------------------------------------------------------
       - name: Step-1 Checkout Repository Code
-        uses: actions/checkout@v3   # Official GitHub action to clone your repo
+        uses: actions/checkout@v4   # Official GitHub action to clone your repo
 
       # ------------------------------------------------------
       # STEP 2: Install Node.js on the server
       # Newman is a Node.js tool - Node.js is required first
       # ------------------------------------------------------
       - name: Step-2 Setup Node.js Version 18
-        uses: actions/setup-node@v3  # Official action to install Node.js
+        uses: actions/setup-node@v4  # Official action to install Node.js
         with:
           node-version: '18'         # LTS version - most stable for Newman
 
